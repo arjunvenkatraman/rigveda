@@ -6,7 +6,25 @@ from livdattable import *
 from libsoma import *
 import pygsheets
 from bs4 import BeautifulSoup
-	
+
+def setup_config(configfile):
+	config=ConfigParser.ConfigParser()
+	config.read(configfile)
+	outhstore = config.get("Google","outhstore")
+	outhfile = config.get("Google","outhfile")
+	rigsheetkey=config.get("Rig","rigsheetkey")
+	rigname=config.get("Rig","rigname")
+	statusurl=config.get("Pool","statusurl")
+	poolname=config.get("Pool","poolname")
+	print "Read config for " + rigname
+	if poolname=="DwarfPool":
+		print "getting status from the dwarves...."
+		rigvals=get_last_24hr_earn_dwarfpool(statusurl)
+	print "Setting up th rigveda sheet..."
+	sheet=setup_rigveda_sheet(rigsheetkey,outhfile,outhstore)
+	print "Updating the testrigsheet"
+	update_testrigsheet(sheet['testrigsheet'],rigvals)
+	return sheet
 def update_testrigsheet(testrigsheet,rigvals):
 	rownum=2
 	tsval=testrigsheet.get_row(rownum)
@@ -19,8 +37,9 @@ def update_testrigsheet(testrigsheet,rigvals):
 		testrigsheet.update_row(rownum,rigvals)
 
 def get_last_24hr_earn_dwarfpool(url):
+    print "opening url "+ url + "..."
     page=urllib2.urlopen(url).read()
-    bs=BeautifulSoup(page,"html")
+    bs=BeautifulSoup(page,"lxml")
     panels=bs.find("div",{"class":"col-lg-3"}).find_all("div",{"class":"panel"})
     for panel in panels:
         listitems=panel.find_all("li",{"class":"list-group-item"})
@@ -30,12 +49,16 @@ def get_last_24hr_earn_dwarfpool(url):
                 earning=line[0].split(" ETH")[0]
             if "Current approx.speed" in line:
 				curhashrate=float(line[0].replace(" mhs",""))
-            print line
         ts=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 	
     return [ts,curhashrate,earning]
 
-	
+def get_calckey(sheet):
+    sheetkey=sheet['calckey'].get_as_df()
+    return sheetkey
+
+
+
 def setup_rigveda_sheet(skey,outhfile,outhstore):
 	sheet={}
 	gc=pygsheets.authorize(outh_file=outhfile,outh_nonlocal=True,outh_creds_store=outhstore)
@@ -45,6 +68,7 @@ def setup_rigveda_sheet(skey,outhfile,outhstore):
 	sheet['calcsheet']=rigvedasheet.worksheet_by_title("CalcSheet")
 	sheet['testrigsheet']=rigvedasheet.worksheet_by_title("TestRig")
 	sheet['calckey']=rigvedasheet.worksheet_by_title("CalcKey")
+	sheet['scenarios']=rigvedasheet.worksheet_by_title("Scenarios")
 	return sheet
 
 
@@ -83,9 +107,9 @@ def get_attribs_for_card(cardsdf,cardname,expected=True):
 	
 	return cardattribs
     
-def get_calckeyvars(sheet,sheetkey):
-    calckeyvars=sheetkey.Value.to_dict().values()
-    return calckeyvars
+def get_sheetcalckey(sheet):
+    sheetkey=sheet['calckey'].get_as_df()
+    return sheetkey
 
 def get_cur_scenario(sheet):
     scenario={}
