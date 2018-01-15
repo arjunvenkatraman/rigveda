@@ -7,6 +7,10 @@ from libsoma import *
 import pygsheets
 from bs4 import BeautifulSoup
 
+
+
+
+
 def setup_config(configfile):
 	config=ConfigParser.ConfigParser()
 	config.read(configfile)
@@ -19,11 +23,16 @@ def setup_config(configfile):
 	print "Read config for " + rigname
 	if poolname=="DwarfPool":
 		print "getting status from the dwarves...."
-		rigvals=get_last_24hr_earn_dwarfpool(statusurl)
+		try:
+			rigvals=get_last_24hr_earn_dwarfpool(statusurl)
+		except:
+			rigvals=[]
+			print "Dwarves did not respond"
 	print "Setting up th rigveda sheet..."
 	sheet=setup_rigveda_sheet(rigsheetkey,outhfile,outhstore)
-	print "Updating the testrigsheet"
-	update_testrigsheet(sheet['testrigsheet'],rigvals)
+	if rigvals!=[]:
+		print "Updating the testrigsheet"
+		update_testrigsheet(sheet['testrigsheet'],rigvals)
 	return sheet
 def update_testrigsheet(testrigsheet,rigvals):
 	rownum=2
@@ -69,6 +78,7 @@ def setup_rigveda_sheet(skey,outhfile,outhstore):
 	sheet['testrigsheet']=rigvedasheet.worksheet_by_title("TestRig")
 	sheet['calckey']=rigvedasheet.worksheet_by_title("CalcKey")
 	sheet['scenarios']=rigvedasheet.worksheet_by_title("Scenarios")
+	sheet['calckeydf']=sheet['calckey'].get_as_df()
 	return sheet
 
 
@@ -83,8 +93,41 @@ def get_testrig_latest(testrigsheet):
 			tsval=testrigsheet.get_row(rownum)
 		return testrigsheet.get_row(rownum-1)
 
-def get_cell_for_value(sheetkey,valuename):
-    return sheetkey.loc[sheetkey['Value']==valuename,"Cell"].iloc[0]
+def get_cell_for_value(calckey,valuename):
+    return str(calckey.loc[calckey.Value==valuename].Cell.iloc[0])
+
+def load_scenario_cardvals(scenario,cardvals):
+	for key in cardvals.keys():
+		scenario[key]=cardvals[key]
+	return scenario
+	
+def get_curvalue(valuename,sheet,calckey):
+	print "Trying to get value for "+ valuename
+	cell=get_cell_for_value(calckey,valuename)
+	value=sheet['calcsheet'].cell(cell).value
+	return value
+
+def set_curvalue(valuename,value,sheet,calckey):
+	print "Trying to set value for "+ valuename
+	cell=get_cell_for_value(calckey,valuename)
+	try:
+		sheet['calcsheet'].update_cell(cell,value)
+	except:
+		print "Could not update"
+
+def update_scenario_curvals(scenario,sheet,calckey):
+	scenariocols=sheet['scenarios'].get_row(1)
+	for columnname in scenariocols:
+		try:
+			curval=get_curvalue(columnname,sheet,calckey)
+		except:
+			if columnname not in scenario.keys():
+				curval=""
+			else:
+				curval=scenario[columnname]
+		scenario[columnname]=curval
+	return scenario
+
 
 def get_attribs_for_card(cardsdf,cardname,expected=True):
 	cardattribs={"cardname":cardname}
@@ -120,4 +163,69 @@ def get_cur_scenario(sheet):
         scenario[var]=sheet['calcsheet'].cell(str(get_cell_for_value(sheetkey,var))).value
     return scenario
     
-    
+def set_scenario_card(scenario,cardname,cardsdf):
+	#cardsdf=sheet['cardsheet'].get_as_df()
+	cardvals=get_attribs_for_card(cardsdf,cardname)
+	scenario=load_scenario_cardvals(scenario,cardvals)
+	return scenario
+	
+def get_scenario_vars(scenario,calckey):
+	varnames=[]
+	for colname in scenario.keys():
+		if colname in calckey.Value.to_dict().values():
+			if calckey.loc[calckey.Value==colname].Type.iloc[0]=="variable":
+				varnames.append(colname)
+	return varnames
+
+def get_scenario_results(scenario,calckey):
+	resnames=[]
+	for colname in scenario.keys():
+		if colname in calckey.Value.to_dict().values():
+			if calckey.loc[calckey.Value==colname].Type.iloc[0]=="result":
+				resnames.append(colname)
+	return resnames
+	
+def load_scenario_variables(scenario,sheet,calckey):
+	varnames=get_scenario_vars(scenario,calckey)
+	for var in varnames:
+		print var,scenario[var]
+		set_curvalue(var,scenario[var],sheet,calckey)
+
+def show_scenario(scenario):
+	print get_color_json(scenario)
+	
+def get_new_scenario(sheet,calckey,blank=False):
+	scenario={}
+	scenariocols=sheet['scenarios'].get_row(1)
+	print scenariocols
+	for columnname in scenariocols:
+		try:
+			curval=get_curvalue(columnname,sheet,calckey)
+		except:
+			if columnname not in scenario.keys():
+				curval=""
+			else:
+				curval=scenario[columnname]
+		if blank==True:
+			curval=""
+		scenario[columnname]=curval
+	return scenario
+
+def set_ranges(scenario,calckey):
+	varnames=get_scenario_vars(scenario,calckey)
+	ranges={}
+	for var in varnames:
+		ranges[var]=range(0,1)
+	return ranges
+	
+def zero_results(scenario,calckey):
+	resnames=get_scenario_results(scenario,calckey)
+	for res in resnames:
+		scenario[res]=""
+	return scenario
+def update_scenarios(sheet,newscenarios):
+	scenarios=sheet['scenarios'].get_as_df()
+	print len(scenarios)
+	scenarios=scenarios.append(newscenarios,ignore_index=True)
+	print len(scenarios)
+	sheet['scenarios'].set_dataframe(scenarios,(1,1))
