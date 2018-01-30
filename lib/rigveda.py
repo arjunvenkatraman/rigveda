@@ -26,10 +26,10 @@ class RigvedaGen(ScenarioGenerator):
 	def __init__(self,*args, **kwargs):
 		super(RigvedaGen,self).__init__(*args, **kwargs)
 		self.cardsheet=self.scenariobook.worksheet_by_title("Cards")
-		self.testrigsheet=self.scenariobook.worksheet_by_title("Cards")
+		self.testrigsheet=self.scenariobook.worksheet_by_title("TestRig")
 		self.cardsdf=self.cardsheet.get_as_df()
 		self.testrigdf=self.testrigsheet.get_as_df()
-	
+		
 	def update_testrigsheet(rigvals):
 		rownum=2
 		tsval=self.testrigsheet.get_row(rownum)
@@ -71,12 +71,12 @@ class RigvedaGen(ScenarioGenerator):
 			cardvals['cardprice']=None
 		return cardvals
 			
-	def load_scenario_cardvals(scenario,cardvals):
+	def load_scenario_cardvals(self,scenario,cardvals):
 		for key in cardvals.keys():
 			scenario[key]=cardvals[key]
 		return scenario
 	
-	def set_scenario_card(scenario,cardname):
+	def set_scenario_card(self,scenario,cardname):
 		cardvals=get_attribs_for_card(self.cardsdf,cardname)
 		scenario=load_scenario_cardvals(scenario,cardvals)
 		return scenario
