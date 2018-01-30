@@ -53,24 +53,32 @@ class RigvedaGen(ScenarioGenerator):
 			return self.testrigsheet.get_row(rownum-1)
 
 	def get_attribs_for_card(self,cardname,expected=True):
-		cardattribs={"cardname":cardname}
+		cardvals={"cardname":cardname}
 		carddict=self.cardsdf.loc[self.cardsdf['cardname']==cardname].transpose().to_dict().values()[0]
 		if carddict['observedhashrate'] !="":
-			cardattribs['cardmhs']=carddict['observedhashrate']
-			cardattribs['cardpower']=carddict['obspowerdrawwatts']
+			cardvals['cardmhs']=carddict['observedhashrate']
+			cardvals['cardpower']=carddict['obspowerdrawwatts']
 		else:
 			if expected==True:
-				cardattribs['cardmhs']=carddict['expectedhashrate']
-				cardattribs['cardpower']=carddict['exppowerdrawwatts']
+				cardvals['cardmhs']=carddict['expectedhashrate']
+				cardvals['cardpower']=carddict['exppowerdrawwatts']
 			else:
-				cardattribs['cardmhs']=carddict['claimedhashrate']
-				cardattribs['cardpower']=carddict['claimedpowerdrawwatts']
+				cardvals['cardmhs']=carddict['claimedhashrate']
+				cardvals['cardpower']=carddict['claimedpowerdrawwatts']
 		if carddict['priceusd']!="":
-			cardattribs['cardprice']=carddict['priceusd']
+			cardvals['cardprice']=carddict['priceusd']
 		else:
-			cardattribs['cardprice']=None
-		return cardattribs
+			cardvals['cardprice']=None
+		return cardvals
 			
-
+	def load_scenario_cardvals(scenario,cardvals):
+		for key in cardvals.keys():
+			scenario[key]=cardvals[key]
+		return scenario
+	
+	def set_scenario_card(scenario,cardname):
+		cardvals=get_attribs_for_card(self.cardsdf,cardname)
+		scenario=load_scenario_cardvals(scenario,cardvals)
+		return scenario
 		
 		
