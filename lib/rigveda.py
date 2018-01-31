@@ -29,8 +29,12 @@ class RigvedaGen(ScenarioGenerator):
 		self.testrigsheet=self.scenariobook.worksheet_by_title("TestRig")
 		self.cardsdf=self.cardsheet.get_as_df()
 		self.testrigdf=self.testrigsheet.get_as_df()
+		self.poolurl=self.config.get("Pool","statusurl")
+		self.poolname=self.config.get("Pool","poolname")
+	def update_testrigsheet(self):
+		if self.poolname=="DwarfPool":
+			rigvals=get_last_24hr_earn_dwarfpool(self.poolurl)
 		
-	def update_testrigsheet(rigvals):
 		rownum=2
 		tsval=self.testrigsheet.get_row(rownum)
 		if tsval==['']:
